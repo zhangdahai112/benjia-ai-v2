@@ -45,13 +45,7 @@ export interface FamilyStoryJob {
   uploadedPhotos: Array<{
     url: string;
     analysis?: string;
-    uploadedBy?: string; // 协作功能：记录上传者
   }>;
-  // 协作相关字段
-  isCollaborative: boolean;
-  createdBy: string;
-  lastModifiedBy?: string;
-  collaborationEnabled: boolean;
   createdAt: Date;
   completedAt?: Date;
   error?: string;
@@ -79,17 +73,12 @@ interface AIServicesContextType {
 
   // 家族故事
   storyJobs: FamilyStoryJob[];
-  createStoryProject: (title: string, config: StoryConfig, enableCollaboration?: boolean) => Promise<string>;
+  createStoryProject: (title: string, config: StoryConfig) => Promise<string>;
   uploadStoryPhoto: (jobId: string, photoFile: File) => Promise<void>;
   chatWithAI: (jobId: string, message: string) => Promise<void>;
   generateStoryOutlineForJob: (jobId: string) => Promise<void>;
   generateFullStory: (jobId: string) => Promise<void>;
   getStoryJob: (id: string) => FamilyStoryJob | undefined;
-
-  // 协作功能
-  enableCollaboration: (jobId: string) => Promise<boolean>;
-  disableCollaboration: (jobId: string) => Promise<boolean>;
-  getCollaborativeStoryJobs: () => FamilyStoryJob[];
 
   // 纪念空间
   memorialJobs: MemorialSpaceJob[];
@@ -122,6 +111,8 @@ async function callPhotoRestoreAPI(imageFile: File, type: PhotoRestoreJob['type'
     throw new Error(`照片修复失败: ${error instanceof Error ? error.message : '未知错误'}`);
   }
 }
+
+
 
 // 模拟纪念空间创建
 async function createMemorialSpace(deceasedName: string, photos: string[], theme: string): Promise<string> {
@@ -174,14 +165,6 @@ export function AIServicesProvider({ children }: { children: ReactNode }) {
         if (data.storyJobs) {
           const jobsWithDates = data.storyJobs.map((job: any) => ({
             ...job,
-            // 兼容旧数据：添加协作相关字段的默认值
-            isCollaborative: job.isCollaborative ?? false,
-            createdBy: job.createdBy ?? 'current_user',
-            collaborationEnabled: job.collaborationEnabled ?? false,
-            uploadedPhotos: (job.uploadedPhotos || []).map((photo: any) => ({
-              ...photo,
-              uploadedBy: photo.uploadedBy ?? 'current_user'
-            })),
             createdAt: new Date(job.createdAt),
             completedAt: job.completedAt ? new Date(job.completedAt) : undefined
           }));
@@ -224,11 +207,6 @@ export function AIServicesProvider({ children }: { children: ReactNode }) {
   React.useEffect(() => {
     saveData();
   }, [saveData]);
-
-  // 获取当前用户ID（简化版，实际应该从认证上下文获取）
-  const getCurrentUserId = () => {
-    return typeof window !== 'undefined' ? localStorage.getItem('current_user_id') || 'current_user' : 'current_user';
-  };
 
   // 提交照片修复任务
   const submitPhotoRestore = async (imageFile: File, type: PhotoRestoreJob['type']): Promise<string> => {
@@ -289,14 +267,11 @@ export function AIServicesProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // 创建故事项目（支持协作）
-  const createStoryProject = async (
-    title: string,
-    config: StoryConfig,
-    enableCollaboration: boolean = true
-  ): Promise<string> => {
+
+
+  // 创建故事项目
+  const createStoryProject = async (title: string, config: StoryConfig): Promise<string> => {
     const jobId = `story_${Date.now()}`;
-    const currentUserId = getCurrentUserId();
 
     const newJob: FamilyStoryJob = {
       id: jobId,
@@ -307,47 +282,25 @@ export function AIServicesProvider({ children }: { children: ReactNode }) {
       storyConfig: config,
       chatHistory: [],
       uploadedPhotos: [],
-      // 协作相关字段
-      isCollaborative: enableCollaboration,
-      createdBy: currentUserId,
-      collaborationEnabled: enableCollaboration,
       createdAt: new Date()
     };
 
     setStoryJobs(prev => [...prev, newJob]);
-
-    // 如果启用协作，自动添加创建者为所有者
-    if (enableCollaboration && typeof window !== 'undefined') {
-      // 这里可以触发协作上下文的初始化
-      setTimeout(() => {
-        // 发送自定义事件通知协作系统
-        window.dispatchEvent(new CustomEvent('story-project-created', {
-          detail: { projectId: jobId, creatorId: currentUserId }
-        }));
-      }, 100);
-    }
-
     return jobId;
   };
 
-  // 上传故事照片（支持协作记录）
+  // 上传故事照片
   const uploadStoryPhoto = async (jobId: string, photoFile: File): Promise<void> => {
-    const currentUserId = getCurrentUserId();
-
     try {
       const photoUrl = URL.createObjectURL(photoFile);
 
-      // 更新照片列表，记录上传者
+      // 更新照片列表
       setStoryJobs(prev => prev.map(job =>
         job.id === jobId
           ? {
               ...job,
-              uploadedPhotos: [...job.uploadedPhotos, {
-                url: photoUrl,
-                uploadedBy: currentUserId
-              }],
-              progress: Math.min(job.progress + 10, 90),
-              lastModifiedBy: currentUserId
+              uploadedPhotos: [...job.uploadedPhotos, { url: photoUrl }],
+              progress: Math.min(job.progress + 10, 90)
             }
           : job
       ));
@@ -372,10 +325,8 @@ export function AIServicesProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // 与AI对话（支持协作记录）
+  // 与AI对话
   const chatWithAI = async (jobId: string, message: string): Promise<void> => {
-    const currentUserId = getCurrentUserId();
-
     try {
       const job = storyJobs.find(j => j.id === jobId);
       if (!job) throw new Error('找不到故事项目');
@@ -389,8 +340,7 @@ export function AIServicesProvider({ children }: { children: ReactNode }) {
           ? {
               ...j,
               chatHistory: updatedHistory,
-              status: 'chatting',
-              lastModifiedBy: currentUserId
+              status: 'chatting'
             }
           : j
       ));
@@ -425,21 +375,14 @@ export function AIServicesProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // 生成故事大纲（支持协作记录）
+  // 生成故事大纲
   const generateStoryOutlineForJob = async (jobId: string): Promise<void> => {
-    const currentUserId = getCurrentUserId();
-
     try {
       const job = storyJobs.find(j => j.id === jobId);
       if (!job) throw new Error('找不到故事项目');
 
       setStoryJobs(prev => prev.map(j =>
-        j.id === jobId ? {
-          ...j,
-          status: 'generating',
-          progress: 50,
-          lastModifiedBy: currentUserId
-        } : j
+        j.id === jobId ? { ...j, status: 'generating', progress: 50 } : j
       ));
 
       const outline = await generateStoryOutline(job.familyInfo as FamilyInfo, job.storyConfig);
@@ -468,21 +411,14 @@ export function AIServicesProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // 生成完整故事（支持协作记录）
+  // 生成完整故事
   const generateFullStory = async (jobId: string): Promise<void> => {
-    const currentUserId = getCurrentUserId();
-
     try {
       const job = storyJobs.find(j => j.id === jobId);
       if (!job) throw new Error('找不到故事项目');
 
       setStoryJobs(prev => prev.map(j =>
-        j.id === jobId ? {
-          ...j,
-          status: 'generating',
-          progress: 80,
-          lastModifiedBy: currentUserId
-        } : j
+        j.id === jobId ? { ...j, status: 'generating', progress: 80 } : j
       ));
 
       // 模拟生成过程 - 在真实环境中会调用实际的章节生成
@@ -507,14 +443,6 @@ ${job.outline || ''}
 ## 第三章：传承与未来
 
 家族的价值不仅在于血缘的联系，更在于精神的传承。通过这些故事和回忆，我们可以看到家族精神在一代又一代人中的延续和发展。
-
-${job.isCollaborative ? `
-## 协作创作感言
-
-这个故事是由家族成员共同创作完成的，凝聚了每个人的心血和情感。通过协作，我们不仅创作了一个故事，更加深了彼此的理解和联系。
-
-感谢所有参与创作的家族成员，正是大家的共同努力，才让这个家族故事如此精彩动人。
-` : ''}
 
 愿这个故事能够成为家族记忆的珍贵载体，让每一位家族成员都能从中感受到家的温暖，汲取前进的力量，并将这份美好继续传承下去。
 
@@ -545,41 +473,6 @@ ${job.isCollaborative ? `
       throw error;
     }
   };
-
-  // 启用协作功能
-  const enableCollaboration = async (jobId: string): Promise<boolean> => {
-    try {
-      setStoryJobs(prev => prev.map(job =>
-        job.id === jobId
-          ? { ...job, collaborationEnabled: true, isCollaborative: true }
-          : job
-      ));
-      return true;
-    } catch (error) {
-      console.error('启用协作失败:', error);
-      return false;
-    }
-  };
-
-  // 禁用协作功能
-  const disableCollaboration = async (jobId: string): Promise<boolean> => {
-    try {
-      setStoryJobs(prev => prev.map(job =>
-        job.id === jobId
-          ? { ...job, collaborationEnabled: false }
-          : job
-      ));
-      return true;
-    } catch (error) {
-      console.error('禁用协作失败:', error);
-      return false;
-    }
-  };
-
-  // 获取协作项目列表
-  const getCollaborativeStoryJobs = useCallback((): FamilyStoryJob[] => {
-    return storyJobs.filter(job => job.isCollaborative && job.collaborationEnabled);
-  }, [storyJobs]);
 
   // 提交纪念空间创建任务
   const submitMemorialCreation = async (
@@ -653,22 +546,6 @@ ${job.isCollaborative ? `
     setIsLoading(false);
   };
 
-  // 监听协作项目创建事件
-  React.useEffect(() => {
-    const handleProjectCreated = (event: CustomEvent) => {
-      const { projectId, creatorId } = event.detail;
-      // 这里可以与协作上下文交互，自动添加创建者为所有者
-      console.log('故事项目创建:', { projectId, creatorId });
-    };
-
-    if (typeof window !== 'undefined') {
-      window.addEventListener('story-project-created', handleProjectCreated as EventListener);
-      return () => {
-        window.removeEventListener('story-project-created', handleProjectCreated as EventListener);
-      };
-    }
-  }, []);
-
   const value: AIServicesContextType = {
     photoJobs,
     submitPhotoRestore,
@@ -681,9 +558,6 @@ ${job.isCollaborative ? `
     generateStoryOutlineForJob,
     generateFullStory,
     getStoryJob,
-    enableCollaboration,
-    disableCollaboration,
-    getCollaborativeStoryJobs,
     memorialJobs,
     submitMemorialCreation,
     getMemorialJob,

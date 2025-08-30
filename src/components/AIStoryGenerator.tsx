@@ -10,12 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { useAIServices, type FamilyStoryJob } from "@/contexts/AIServicesContext";
-import { useCollaboration } from "@/contexts/CollaborationContext";
-import { useAuth } from "@/contexts/AuthContext";
 import { type StoryConfig } from "@/lib/ai-apis/llm-services";
 import { useToast } from "@/hooks/use-toast";
 import VoiceInput from "@/components/VoiceInput";
-import CollaborationPanel from "@/components/CollaborationPanel";
 import {
   Upload,
   MessageSquare,
@@ -36,12 +33,7 @@ import {
   Mic,
   MicOff,
   Volume2,
-  Keyboard,
-  Users,
-  Share2,
-  Shield,
-  Crown,
-  Edit3
+  Keyboard
 } from "lucide-react";
 
 interface AIStoryGeneratorProps {
@@ -49,7 +41,6 @@ interface AIStoryGeneratorProps {
 }
 
 export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProps) {
-  const { user } = useAuth();
   const {
     storyJobs,
     createStoryProject,
@@ -59,21 +50,11 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
     generateFullStory,
     getStoryJob
   } = useAIServices();
-
-  const {
-    getProjectCollaborators,
-    getPermissions,
-    getOnlineCollaborators,
-    addActivity,
-    canUserAccess
-  } = useCollaboration();
-
   const { toast } = useToast();
 
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [currentMessage, setCurrentMessage] = useState("");
   const [showSettings, setShowSettings] = useState(false);
-  const [showCollaboration, setShowCollaboration] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [inputMode, setInputMode] = useState<'text' | 'voice'>('text');
   const [voiceTranscript, setVoiceTranscript] = useState("");
@@ -102,21 +83,6 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
   // 获取当前活跃的故事项目
   const activeJob = activeJobId ? getStoryJob(activeJobId) : null;
 
-  // 获取协作信息
-  const collaborators = activeJobId ? getProjectCollaborators(activeJobId) : [];
-  const permissions = activeJobId ? getPermissions(activeJobId) : {
-    canInvite: false,
-    canEdit: false,
-    canComment: false,
-    canGenerate: false,
-    canDelete: false,
-    canManageRoles: false
-  };
-  const onlineCollaborators = activeJobId ? getOnlineCollaborators(activeJobId) : [];
-
-  // 检查访问权限
-  const hasAccess = activeJobId ? canUserAccess(activeJobId) : true;
-
   // 创建新的故事项目
   const handleCreateProject = async () => {
     if (!showSettings) {
@@ -129,11 +95,6 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
       const jobId = await createStoryProject(title, storyConfig);
       setActiveJobId(jobId);
       setShowSettings(false);
-
-      // 如果有协作功能，添加创建者为所有者
-      if (user) {
-        // 这里可以自动添加创建者为协作者
-      }
 
       toast({
         title: "故事项目已创建",
@@ -159,15 +120,6 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
       return;
     }
 
-    if (!permissions.canEdit) {
-      toast({
-        title: "权限不足",
-        description: "您没有权限上传照片",
-        variant: "destructive"
-      });
-      return;
-    }
-
     const file = files[0];
     if (!file.type.startsWith('image/')) {
       toast({
@@ -180,12 +132,6 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
 
     try {
       await uploadStoryPhoto(activeJobId, file);
-
-      // 记录协作活动
-      if (activeJobId) {
-        addActivity(activeJobId, 'photo', `上传了照片 ${file.name}`);
-      }
-
       toast({
         title: "照片上传成功",
         description: "AI正在分析照片内容...",
@@ -233,23 +179,11 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
     const message = messageText || currentMessage.trim();
     if (!message || !activeJobId) return;
 
-    if (!permissions.canEdit) {
-      toast({
-        title: "权限不足",
-        description: "您没有权限发送消息",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
       setCurrentMessage("");
       setVoiceTranscript("");
 
       await chatWithAI(activeJobId, message);
-
-      // 记录协作活动
-      addActivity(activeJobId, 'message', `发送了消息: ${message.slice(0, 30)}...`);
     } catch (error) {
       toast({
         title: "发送失败",
@@ -283,21 +217,8 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
   const handleGenerateOutline = async () => {
     if (!activeJobId) return;
 
-    if (!permissions.canGenerate) {
-      toast({
-        title: "权限不足",
-        description: "您没有权限生成故事内容",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
       await generateStoryOutlineForJob(activeJobId);
-
-      // 记录协作活动
-      addActivity(activeJobId, 'generate', '生成了故事大纲');
-
       toast({
         title: "大纲生成中",
         description: "AI正在为您生成故事大纲...",
@@ -315,21 +236,8 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
   const handleGenerateStory = async () => {
     if (!activeJobId) return;
 
-    if (!permissions.canGenerate) {
-      toast({
-        title: "权限不足",
-        description: "您没有权限生成故事内容",
-        variant: "destructive"
-      });
-      return;
-    }
-
     try {
       await generateFullStory(activeJobId);
-
-      // 记录协作活动
-      addActivity(activeJobId, 'generate', '生成了完整故事');
-
       toast({
         title: "故事生成中",
         description: "AI正在为您生成完整的家族故事...",
@@ -343,34 +251,8 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
     }
   };
 
-  // 获取用户角色信息
-  const getUserRole = () => {
-    if (!user || !activeJobId) return null;
-    const collaborator = collaborators.find(c => c.id === user.id);
-    return collaborator?.role;
-  };
-
-  // 获取角色显示信息
-  const getRoleInfo = (role?: string) => {
-    switch (role) {
-      case 'owner':
-        return { color: 'bg-yellow-100 text-yellow-700', icon: Crown, label: '所有者' };
-      case 'editor':
-        return { color: 'bg-blue-100 text-blue-700', icon: Edit3, label: '编辑者' };
-      case 'reviewer':
-        return { color: 'bg-green-100 text-green-700', icon: MessageSquare, label: '评审者' };
-      case 'viewer':
-        return { color: 'bg-gray-100 text-gray-700', icon: Eye, label: '查看者' };
-      default:
-        return { color: 'bg-gray-100 text-gray-700', icon: User, label: '用户' };
-    }
-  };
-
-  const userRole = getUserRole();
-  const roleInfo = getRoleInfo(userRole);
-
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       {/* 项目列表和创建 */}
       {!activeJobId && (
         <Card className="border-green-200">
@@ -380,7 +262,7 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
               AI家族故事生成器
             </CardTitle>
             <CardDescription>
-              与AI对话，上传照片，协作创作专属的家族传奇故事
+              与AI对话，上传照片，创作专属的家族传奇故事
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -459,69 +341,32 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
               <div className="mb-6">
                 <h3 className="font-medium mb-3">已有项目</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {storyJobs.slice(0, 4).map((job) => {
-                    const jobCollaborators = getProjectCollaborators(job.id);
-                    const hasJobAccess = canUserAccess(job.id);
-
-                    return (
-                      <Card
-                        key={job.id}
-                        className={`cursor-pointer hover:shadow-md transition-shadow ${!hasJobAccess ? 'opacity-60' : ''}`}
-                        onClick={() => hasJobAccess && setActiveJobId(job.id)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium truncate">{job.title}</h4>
-                            <div className="flex items-center space-x-1">
-                              <Badge variant={
-                                job.status === 'completed' ? 'default' :
-                                job.status === 'failed' ? 'destructive' : 'secondary'
-                              }>
-                                {job.status === 'completed' ? '已完成' :
-                                 job.status === 'generating' ? '生成中' :
-                                 job.status === 'chatting' ? '对话中' :
-                                 job.status === 'failed' ? '失败' : '创建中'}
-                              </Badge>
-                              {!hasJobAccess && (
-                                <Shield className="w-4 h-4 text-gray-400" />
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="text-sm text-gray-600 mb-2">
-                            {job.chatHistory.length} 条对话 • {job.uploadedPhotos.length} 张照片
-                          </div>
-
-                          {/* 协作者信息 */}
-                          {jobCollaborators.length > 0 && (
-                            <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-                              <div className="flex items-center space-x-1">
-                                <Users className="w-3 h-3" />
-                                <span>{jobCollaborators.length} 位协作者</span>
-                              </div>
-                              <div className="flex -space-x-1">
-                                {jobCollaborators.slice(0, 3).map(collaborator => (
-                                  <Avatar key={collaborator.id} className="w-5 h-5 border border-white">
-                                    <AvatarImage src={collaborator.avatar} />
-                                    <AvatarFallback className="text-xs">
-                                      {collaborator.name.slice(-1)}
-                                    </AvatarFallback>
-                                  </Avatar>
-                                ))}
-                                {jobCollaborators.length > 3 && (
-                                  <div className="w-5 h-5 bg-gray-200 rounded-full border border-white flex items-center justify-center">
-                                    <span className="text-xs">+{jobCollaborators.length - 3}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-
-                          <Progress value={job.progress} className="h-2" />
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                  {storyJobs.slice(0, 4).map((job) => (
+                    <Card
+                      key={job.id}
+                      className="cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => setActiveJobId(job.id)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium truncate">{job.title}</h4>
+                          <Badge variant={
+                            job.status === 'completed' ? 'default' :
+                            job.status === 'failed' ? 'destructive' : 'secondary'
+                          }>
+                            {job.status === 'completed' ? '已完成' :
+                             job.status === 'generating' ? '生成中' :
+                             job.status === 'chatting' ? '对话中' :
+                             job.status === 'failed' ? '失败' : '创建中'}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-gray-600 mb-2">
+                          {job.chatHistory.length} 条对话 • {job.uploadedPhotos.length} 张照片
+                        </div>
+                        <Progress value={job.progress} className="h-2" />
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               </div>
             )}
@@ -560,46 +405,17 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
 
       {/* 故事创作界面 */}
       {activeJobId && activeJob && (
-        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 左侧：聊天界面 */}
-          <div className="xl:col-span-2">
+          <div className="lg:col-span-2">
             <Card className="h-[600px] flex flex-col">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <CardTitle className="flex items-center">
-                      <MessageSquare className="w-5 h-5 mr-2 text-green-600" />
-                      {activeJob.title}
-                    </CardTitle>
-                    {/* 当前用户角色 */}
-                    {userRole && (
-                      <Badge className={`text-xs ${roleInfo.color}`}>
-                        <roleInfo.icon className="w-3 h-3 mr-1" />
-                        {roleInfo.label}
-                      </Badge>
-                    )}
-                  </div>
-
+                  <CardTitle className="flex items-center">
+                    <MessageSquare className="w-5 h-5 mr-2 text-green-600" />
+                    {activeJob.title}
+                  </CardTitle>
                   <div className="flex items-center space-x-2">
-                    {/* 在线协作者 */}
-                    {onlineCollaborators.length > 0 && (
-                      <div className="flex items-center space-x-1">
-                        <div className="flex -space-x-1">
-                          {onlineCollaborators.slice(0, 3).map(collaborator => (
-                            <Avatar key={collaborator.id} className="w-6 h-6 border-2 border-white">
-                              <AvatarImage src={collaborator.avatar} />
-                              <AvatarFallback className="text-xs">
-                                {collaborator.name.slice(-1)}
-                              </AvatarFallback>
-                            </Avatar>
-                          ))}
-                        </div>
-                        <span className="text-xs text-green-600">
-                          {onlineCollaborators.length} 人在线
-                        </span>
-                      </div>
-                    )}
-
                     <Badge variant={
                       activeJob.status === 'completed' ? 'default' :
                       activeJob.status === 'failed' ? 'destructive' : 'secondary'
@@ -609,16 +425,6 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
                        activeJob.status === 'chatting' ? '对话中' :
                        activeJob.status === 'failed' ? '失败' : '创建中'}
                     </Badge>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowCollaboration(!showCollaboration)}
-                    >
-                      <Users className="w-4 h-4 mr-1" />
-                      协作
-                    </Button>
-
                     <Button
                       variant="outline"
                       size="sm"
@@ -642,11 +448,6 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
                       <Bot className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                       <p className="text-lg font-medium mb-2">欢迎使用AI家族故事生成器！</p>
                       <p className="text-sm">上传照片或发送消息开始创作您的家族故事</p>
-                      {collaborators.length > 1 && (
-                        <p className="text-sm text-blue-600 mt-2">
-                          💡 这是一个协作项目，您可以与其他家族成员一起创作
-                        </p>
-                      )}
                     </div>
                   ) : (
                     activeJob.chatHistory.map((message, index) => (
@@ -694,34 +495,26 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
                         语音转录中...
                       </Badge>
                     )}
-                    {!permissions.canEdit && (
-                      <Badge variant="outline" className="text-xs text-orange-600">
-                        <Shield className="w-3 h-3 mr-1" />
-                        只读模式
-                      </Badge>
-                    )}
                   </div>
 
-                  {permissions.canEdit && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={toggleInputMode}
-                      className="text-xs"
-                    >
-                      {inputMode === 'text' ? (
-                        <>
-                          <Mic className="w-3 h-3 mr-1" />
-                          语音输入
-                        </>
-                      ) : (
-                        <>
-                          <Keyboard className="w-3 h-3 mr-1" />
-                          文字输入
-                        </>
-                      )}
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleInputMode}
+                    className="text-xs"
+                  >
+                    {inputMode === 'text' ? (
+                      <>
+                        <Mic className="w-3 h-3 mr-1" />
+                        语音输入
+                      </>
+                    ) : (
+                      <>
+                        <Keyboard className="w-3 h-3 mr-1" />
+                        文字输入
+                      </>
+                    )}
+                  </Button>
                 </div>
 
                 {/* 文字输入模式 */}
@@ -730,11 +523,10 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
                     <Textarea
                       value={currentMessage}
                       onChange={(e) => setCurrentMessage(e.target.value)}
-                      placeholder={permissions.canEdit ? "请描述您想要包含在故事中的内容，或询问AI任何问题..." : "您只有查看权限，无法发送消息"}
+                      placeholder="请描述您想要包含在故事中的内容，或询问AI任何问题..."
                       className="flex-1 min-h-[60px] resize-none"
-                      disabled={!permissions.canEdit}
                       onKeyPress={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey && permissions.canEdit) {
+                        if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
                           handleSendMessage();
                         }
@@ -742,7 +534,7 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
                     />
                     <Button
                       onClick={() => handleSendMessage()}
-                      disabled={!currentMessage.trim() || activeJob.status === 'generating' || !permissions.canEdit}
+                      disabled={!currentMessage.trim() || activeJob.status === 'generating'}
                       className="bg-green-600 hover:bg-green-700"
                     >
                       <Send className="w-4 h-4" />
@@ -751,7 +543,7 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
                 )}
 
                 {/* 语音输入模式 */}
-                {inputMode === 'voice' && permissions.canEdit && (
+                {inputMode === 'voice' && (
                   <div className="space-y-2">
                     <VoiceInput
                       onTranscriptChange={handleVoiceTranscriptChange}
@@ -769,18 +561,11 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
                     </div>
                   </div>
                 )}
-
-                {!permissions.canEdit && (
-                  <div className="text-center py-2 text-gray-500 text-sm">
-                    <Shield className="w-4 h-4 mx-auto mb-1" />
-                    您当前是{roleInfo.label}，无法编辑内容
-                  </div>
-                )}
               </div>
             </Card>
           </div>
 
-          {/* 中间：工具面板 */}
+          {/* 右侧：工具面板 */}
           <div className="space-y-6">
             {/* 照片上传 */}
             <Card>
@@ -796,20 +581,18 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
                   onDragLeave={handleDragLeave}
                   onDragOver={handleDragOver}
                   onDrop={handleDrop}
-                  onClick={() => permissions.canEdit && fileInputRef.current?.click()}
+                  onClick={() => fileInputRef.current?.click()}
                   className={`
-                    border-2 border-dashed rounded-lg p-6 text-center transition-all
-                    ${!permissions.canEdit
-                      ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
-                      : isDragging
-                        ? 'border-green-500 bg-green-50 cursor-pointer'
-                        : 'border-gray-300 hover:border-green-400 cursor-pointer'
+                    border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all
+                    ${isDragging
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-300 hover:border-green-400'
                     }
                   `}
                 >
-                  <Upload className={`w-8 h-8 mx-auto mb-2 ${!permissions.canEdit ? 'text-gray-300' : 'text-gray-400'}`} />
-                  <p className={`text-sm ${!permissions.canEdit ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {permissions.canEdit ? '拖拽或点击上传家族照片' : '无上传权限'}
+                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">
+                    拖拽或点击上传家族照片
                   </p>
                 </div>
 
@@ -819,7 +602,6 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
                   accept="image/*"
                   onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
                   className="hidden"
-                  disabled={!permissions.canEdit}
                 />
 
                 {/* 已上传的照片 */}
@@ -858,7 +640,7 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
               <CardContent className="space-y-3">
                 <Button
                   onClick={handleGenerateOutline}
-                  disabled={activeJob.status === 'generating' || !permissions.canGenerate}
+                  disabled={activeJob.status === 'generating'}
                   className="w-full"
                   variant="outline"
                 >
@@ -872,7 +654,7 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
 
                 <Button
                   onClick={handleGenerateStory}
-                  disabled={activeJob.status === 'generating' || !permissions.canGenerate}
+                  disabled={activeJob.status === 'generating'}
                   className="w-full bg-green-600 hover:bg-green-700"
                 >
                   {activeJob.status === 'generating' ? (
@@ -902,12 +684,6 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
                     <Download className="w-4 h-4 mr-2" />
                     下载故事
                   </Button>
-                )}
-
-                {!permissions.canGenerate && (
-                  <p className="text-xs text-gray-500 text-center">
-                    您没有生成内容的权限
-                  </p>
                 )}
               </CardContent>
             </Card>
@@ -967,10 +743,6 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
                     <CheckCircle className={`w-4 h-4 ${inputMode === 'voice' || voiceTranscript ? 'text-green-500' : 'text-gray-300'}`} />
                   </div>
                   <div className="flex items-center justify-between text-sm">
-                    <span>协作参与</span>
-                    <CheckCircle className={`w-4 h-4 ${collaborators.length > 1 ? 'text-green-500' : 'text-gray-300'}`} />
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
                     <span>故事大纲</span>
                     <CheckCircle className={`w-4 h-4 ${activeJob.outline ? 'text-green-500' : 'text-gray-300'}`} />
                   </div>
@@ -982,21 +754,6 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
               </CardContent>
             </Card>
           </div>
-
-          {/* 右侧：协作面板 */}
-          {showCollaboration && (
-            <div className="space-y-6">
-              <CollaborationPanel
-                projectId={activeJobId}
-                onCollaboratorAdd={(collaborator) => {
-                  toast({
-                    title: "新协作者",
-                    description: `${collaborator.name} 加入了协作`
-                  });
-                }}
-              />
-            </div>
-          )}
         </div>
       )}
 
@@ -1004,42 +761,10 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
       {activeJob?.content && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center">
-                <Eye className="w-5 h-5 mr-2 text-green-600" />
-                故事预览
-              </CardTitle>
-              {collaborators.length > 1 && (
-                <div className="flex items-center space-x-2">
-                  <Badge variant="outline" className="text-xs">
-                    <Users className="w-3 h-3 mr-1" />
-                    {collaborators.length} 人协作完成
-                  </Badge>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // 分享功能
-                      if (navigator.share) {
-                        navigator.share({
-                          title: activeJob.title,
-                          text: activeJob.content
-                        });
-                      } else {
-                        navigator.clipboard.writeText(activeJob.content || '');
-                        toast({
-                          title: "已复制",
-                          description: "故事内容已复制到剪贴板"
-                        });
-                      }
-                    }}
-                  >
-                    <Share2 className="w-4 h-4 mr-1" />
-                    分享
-                  </Button>
-                </div>
-              )}
-            </div>
+            <CardTitle className="flex items-center">
+              <Eye className="w-5 h-5 mr-2 text-green-600" />
+              故事预览
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="prose max-w-none">

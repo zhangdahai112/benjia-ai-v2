@@ -5,9 +5,21 @@ import ClientBody from "./ClientBody";
 import Script from "next/script";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AIServicesProvider } from "@/contexts/AIServicesContext";
-import { CollaborationProvider } from "@/contexts/CollaborationContext";
 
-// ... existing code ... <font imports and metadata>
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "本家AI - AI让家族文化传承更美好",
+  description: "一个AI家族文化管理平台，帮助家族成员安全便捷的传承珍贵的家族记忆",
+};
 
 export default function RootLayout({
   children,
@@ -25,9 +37,7 @@ export default function RootLayout({
       <body suppressHydrationWarning className="antialiased">
         <AuthProvider>
           <AIServicesProvider>
-            <CollaborationProvider>
-              <ClientBody>{children}</ClientBody>
-            </CollaborationProvider>
+            <ClientBody>{children}</ClientBody>
           </AIServicesProvider>
         </AuthProvider>
       </body>
