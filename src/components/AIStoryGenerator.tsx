@@ -67,6 +67,23 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
     language: 'zh'
   });
 
+  // Type-safe handlers for config updates
+  const handleStyleChange = (value: string) => {
+    setStoryConfig(prev => ({ ...prev, style: value as StoryConfig['style'] }));
+  };
+
+  const handleToneChange = (value: string) => {
+    setStoryConfig(prev => ({ ...prev, tone: value as StoryConfig['tone'] }));
+  };
+
+  const handleLengthChange = (value: string) => {
+    setStoryConfig(prev => ({ ...prev, length: value as StoryConfig['length'] }));
+  };
+
+  const handleLanguageChange = (value: string) => {
+    setStoryConfig(prev => ({ ...prev, language: value as StoryConfig['language'] }));
+  };
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -271,9 +288,7 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-green-50 rounded-lg">
                 <div>
                   <label className="block text-sm font-medium mb-2">故事风格</label>
-                  <Select value={storyConfig.style} onValueChange={(value: any) =>
-                    setStoryConfig(prev => ({ ...prev, style: value }))
-                  }>
+                  <Select value={storyConfig.style} onValueChange={handleStyleChange}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -288,9 +303,7 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
 
                 <div>
                   <label className="block text-sm font-medium mb-2">写作风格</label>
-                  <Select value={storyConfig.tone} onValueChange={(value: any) =>
-                    setStoryConfig(prev => ({ ...prev, tone: value }))
-                  }>
+                  <Select value={storyConfig.tone} onValueChange={handleToneChange}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -305,9 +318,7 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
 
                 <div>
                   <label className="block text-sm font-medium mb-2">故事长度</label>
-                  <Select value={storyConfig.length} onValueChange={(value: any) =>
-                    setStoryConfig(prev => ({ ...prev, length: value }))
-                  }>
+                  <Select value={storyConfig.length} onValueChange={handleLengthChange}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -321,9 +332,7 @@ export default function AIStoryGenerator({ onJobComplete }: AIStoryGeneratorProp
 
                 <div>
                   <label className="block text-sm font-medium mb-2">语言</label>
-                  <Select value={storyConfig.language} onValueChange={(value: any) =>
-                    setStoryConfig(prev => ({ ...prev, language: value }))
-                  }>
+                  <Select value={storyConfig.language} onValueChange={handleLanguageChange}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

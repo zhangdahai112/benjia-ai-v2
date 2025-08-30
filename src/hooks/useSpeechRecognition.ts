@@ -1,5 +1,43 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+// Extend Window interface for Speech Recognition
+declare global {
+  interface Window {
+    SpeechRecognition: {
+      new (): SpeechRecognition;
+    };
+    webkitSpeechRecognition: {
+      new (): SpeechRecognition;
+    };
+  }
+
+  interface SpeechRecognition extends EventTarget {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    maxAlternatives: number;
+    start(): void;
+    stop(): void;
+    abort(): void;
+    onstart: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+    onend: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+    onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => unknown) | null;
+    onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => unknown) | null;
+    onspeechend: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+  }
+}
+
+// Speech Recognition Event interface
+interface SpeechRecognitionEvent extends Event {
+  readonly resultIndex: number;
+  readonly results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  readonly error: 'no-speech' | 'aborted' | 'audio-capture' | 'network' | 'not-allowed' | 'service-not-allowed' | 'bad-grammar' | 'language-not-supported';
+  readonly message?: string;
+}
+
 // 语音识别状态类型
 export type SpeechRecognitionStatus = 'idle' | 'listening' | 'processing' | 'error';
 
@@ -39,7 +77,7 @@ const checkBrowserSupport = () => {
   // 检查 SpeechRecognition API 支持
   const SpeechRecognition =
     window.SpeechRecognition ||
-    (window as any).webkitSpeechRecognition;
+    window.webkitSpeechRecognition;
 
   return !!SpeechRecognition;
 };
@@ -88,7 +126,7 @@ export function useSpeechRecognition(config: SpeechRecognitionConfig = {}): UseS
 
     const SpeechRecognition =
       window.SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+      window.webkitSpeechRecognition;
 
     const recognition = new SpeechRecognition();
     recognition.continuous = continuous;

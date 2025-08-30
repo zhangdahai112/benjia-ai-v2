@@ -105,7 +105,7 @@ function fileToBase64(file: File): Promise<string> {
 /**
  * 调用百度AI API
  */
-async function callBaiduAPI(endpoint: string, params: Record<string, any>): Promise<BaiduAIResponse> {
+async function callBaiduAPI(endpoint: string, params: Record<string, string>): Promise<BaiduAIResponse> {
   const token = await getAccessToken();
 
   const response = await fetch(`${endpoint}?access_token=${token}`, {

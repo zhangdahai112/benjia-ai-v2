@@ -116,73 +116,24 @@ export function FamilyCommunityProvider({ children }: { children: ReactNode }) {
   const [likes, setLikes] = useState<PostLike[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 从本地存储加载数据
-  const loadData = useCallback(async () => {
-    if (!family) return;
-
-    try {
-      const savedPosts = localStorage.getItem(`${STORAGE_KEYS.POSTS}_${family.id}`);
-      const savedComments = localStorage.getItem(`${STORAGE_KEYS.COMMENTS}_${family.id}`);
-      const savedLikes = localStorage.getItem(`${STORAGE_KEYS.LIKES}_${family.id}`);
-
-      if (savedPosts) {
-        const parsedPosts = JSON.parse(savedPosts) as Post[];
-        // 转换日期字符串回 Date 对象
-        const postsWithDates = parsedPosts.map(post => ({
-          ...post,
-          createdAt: new Date(post.createdAt),
-          updatedAt: new Date(post.updatedAt)
-        }));
-        setPosts(postsWithDates);
-      } else {
-        // 创建演示数据
-        const demoPosts = createDemoPosts(family.id);
-        setPosts(demoPosts);
-        savePosts(demoPosts);
-      }
-
-      if (savedComments) {
-        const parsedComments = JSON.parse(savedComments) as PostComment[];
-        const commentsWithDates = parsedComments.map(comment => ({
-          ...comment,
-          createdAt: new Date(comment.createdAt)
-        }));
-        setComments(commentsWithDates);
-      }
-
-      if (savedLikes) {
-        const parsedLikes = JSON.parse(savedLikes) as PostLike[];
-        const likesWithDates = parsedLikes.map(like => ({
-          ...like,
-          createdAt: new Date(like.createdAt)
-        }));
-        setLikes(likesWithDates);
-      }
-    } catch (error) {
-      console.error('Failed to load community data:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [family]);
-
   // 保存数据到本地存储
-  const savePosts = (postsData: Post[]) => {
+  const savePosts = useCallback((postsData: Post[]) => {
     if (!family) return;
     localStorage.setItem(`${STORAGE_KEYS.POSTS}_${family.id}`, JSON.stringify(postsData));
-  };
+  }, [family]);
 
-  const saveComments = (commentsData: PostComment[]) => {
+  const saveComments = useCallback((commentsData: PostComment[]) => {
     if (!family) return;
     localStorage.setItem(`${STORAGE_KEYS.COMMENTS}_${family.id}`, JSON.stringify(commentsData));
-  };
+  }, [family]);
 
-  const saveLikes = (likesData: PostLike[]) => {
+  const saveLikes = useCallback((likesData: PostLike[]) => {
     if (!family) return;
     localStorage.setItem(`${STORAGE_KEYS.LIKES}_${family.id}`, JSON.stringify(likesData));
-  };
+  }, [family]);
 
   // 创建演示数据
-  const createDemoPosts = (familyId: string): Post[] => {
+  const createDemoPosts = useCallback((familyId: string): Post[] => {
     const now = new Date();
     const currentUserId = user?.id || 'current_user';
 
@@ -266,7 +217,56 @@ export function FamilyCommunityProvider({ children }: { children: ReactNode }) {
         viewCount: 35
       }
     ];
-  };
+  }, [user]);
+
+  // 从本地存储加载数据
+  const loadData = useCallback(async () => {
+    if (!family) return;
+
+    try {
+      const savedPosts = localStorage.getItem(`${STORAGE_KEYS.POSTS}_${family.id}`);
+      const savedComments = localStorage.getItem(`${STORAGE_KEYS.COMMENTS}_${family.id}`);
+      const savedLikes = localStorage.getItem(`${STORAGE_KEYS.LIKES}_${family.id}`);
+
+      if (savedPosts) {
+        const parsedPosts = JSON.parse(savedPosts) as Post[];
+        // 转换日期字符串回 Date 对象
+        const postsWithDates = parsedPosts.map(post => ({
+          ...post,
+          createdAt: new Date(post.createdAt),
+          updatedAt: new Date(post.updatedAt)
+        }));
+        setPosts(postsWithDates);
+      } else {
+        // 创建演示数据
+        const demoPosts = createDemoPosts(family.id);
+        setPosts(demoPosts);
+        savePosts(demoPosts);
+      }
+
+      if (savedComments) {
+        const parsedComments = JSON.parse(savedComments) as PostComment[];
+        const commentsWithDates = parsedComments.map(comment => ({
+          ...comment,
+          createdAt: new Date(comment.createdAt)
+        }));
+        setComments(commentsWithDates);
+      }
+
+      if (savedLikes) {
+        const parsedLikes = JSON.parse(savedLikes) as PostLike[];
+        const likesWithDates = parsedLikes.map(like => ({
+          ...like,
+          createdAt: new Date(like.createdAt)
+        }));
+        setLikes(likesWithDates);
+      }
+    } catch (error) {
+      console.error('Failed to load community data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [family, createDemoPosts, savePosts]);
 
   // 加载数据
   useEffect(() => {

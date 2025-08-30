@@ -4,6 +4,70 @@ import React, { createContext, useContext, useState, useCallback, ReactNode, use
 import { useAuth } from './AuthContext';
 import { useFamilyMembers } from './FamilyMembersContext';
 
+// Raw data interfaces for localStorage parsing
+interface RawCollaborator {
+  id: string;
+  name: string;
+  avatar?: string;
+  role: CollaboratorRole;
+  isOnline: boolean;
+  lastActive: string | Date;
+  joinedAt: string | Date;
+  contributions: {
+    messages: number;
+    photos: number;
+    edits: number;
+  };
+}
+
+interface RawCollaborationInvite {
+  id: string;
+  projectId: string;
+  projectTitle: string;
+  invitorId: string;
+  invitorName: string;
+  inviteeId: string;
+  inviteeName: string;
+  role: CollaboratorRole;
+  status: 'pending' | 'accepted' | 'declined' | 'expired';
+  message?: string;
+  createdAt: string | Date;
+  expiresAt: string | Date;
+}
+
+interface RawCollaborationActivity {
+  id: string;
+  projectId: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  type: 'join' | 'leave' | 'message' | 'photo' | 'edit' | 'comment' | 'generate';
+  action: string;
+  details?: Record<string, unknown>;
+  createdAt: string | Date;
+}
+
+interface RawCollaborationComment {
+  id: string;
+  projectId: string;
+  messageId?: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar?: string;
+  content: string;
+  type: 'general' | 'suggestion' | 'approval' | 'question';
+  replies: RawCollaborationComment[];
+  createdAt: string | Date;
+  updatedAt: string | Date;
+}
+
+interface RawCollaborationData {
+  collaborators?: Record<string, RawCollaborator[]>;
+  invitations?: RawCollaborationInvite[];
+  activities?: Record<string, RawCollaborationActivity[]>;
+  comments?: Record<string, RawCollaborationComment[]>;
+}
+
 // 协作者角色类型
 export type CollaboratorRole = 'owner' | 'editor' | 'reviewer' | 'viewer';
 
@@ -48,7 +112,7 @@ export interface CollaborationActivity {
   userAvatar?: string;
   type: 'join' | 'leave' | 'message' | 'photo' | 'edit' | 'comment' | 'generate';
   action: string;
-  details?: any;
+  details?: Record<string, unknown>;
   createdAt: Date;
 }
 
@@ -90,7 +154,7 @@ interface CollaborationContextType {
 
   // 活动记录
   getProjectActivities: (projectId: string) => CollaborationActivity[];
-  addActivity: (projectId: string, type: CollaborationActivity['type'], action: string, details?: any) => void;
+  addActivity: (projectId: string, type: CollaborationActivity['type'], action: string, details?: Record<string, unknown>) => void;
 
   // 评论系统
   getProjectComments: (projectId: string) => CollaborationComment[];
@@ -130,8 +194,8 @@ export function CollaborationProvider({ children }: { children: ReactNode }) {
         const data = JSON.parse(saved);
 
         if (data.collaborators) {
-          const collaboratorsWithDates = Object.entries(data.collaborators).reduce((acc, [projectId, colls]: [string, any]) => {
-            acc[projectId] = colls.map((coll: any) => ({
+          const collaboratorsWithDates = Object.entries(data.collaborators as Record<string, RawCollaborator[]>).reduce((acc, [projectId, colls]) => {
+            acc[projectId] = colls.map((coll: RawCollaborator) => ({
               ...coll,
               lastActive: new Date(coll.lastActive),
               joinedAt: new Date(coll.joinedAt)
@@ -142,7 +206,7 @@ export function CollaborationProvider({ children }: { children: ReactNode }) {
         }
 
         if (data.invitations) {
-          const invitationsWithDates = data.invitations.map((invite: any) => ({
+          const invitationsWithDates = data.invitations.map((invite: RawCollaborationInvite) => ({
             ...invite,
             createdAt: new Date(invite.createdAt),
             expiresAt: new Date(invite.expiresAt)
@@ -151,8 +215,8 @@ export function CollaborationProvider({ children }: { children: ReactNode }) {
         }
 
         if (data.activities) {
-          const activitiesWithDates = Object.entries(data.activities).reduce((acc, [projectId, acts]: [string, any]) => {
-            acc[projectId] = acts.map((act: any) => ({
+          const activitiesWithDates = Object.entries(data.activities as Record<string, RawCollaborationActivity[]>).reduce((acc, [projectId, acts]) => {
+            acc[projectId] = acts.map((act: RawCollaborationActivity) => ({
               ...act,
               createdAt: new Date(act.createdAt)
             }));
@@ -162,15 +226,16 @@ export function CollaborationProvider({ children }: { children: ReactNode }) {
         }
 
         if (data.comments) {
-          const commentsWithDates = Object.entries(data.comments).reduce((acc, [projectId, comms]: [string, any]) => {
-            acc[projectId] = comms.map((comm: any) => ({
+          const commentsWithDates = Object.entries(data.comments as Record<string, RawCollaborationComment[]>).reduce((acc, [projectId, comms]) => {
+            acc[projectId] = comms.map((comm: RawCollaborationComment) => ({
               ...comm,
               createdAt: new Date(comm.createdAt),
               updatedAt: new Date(comm.updatedAt),
-              replies: comm.replies.map((reply: any) => ({
+              replies: comm.replies.map((reply: RawCollaborationComment) => ({
                 ...reply,
                 createdAt: new Date(reply.createdAt),
-                updatedAt: new Date(reply.updatedAt)
+                updatedAt: new Date(reply.updatedAt),
+                replies: [] // Reset nested replies to avoid deep nesting issues
               }))
             }));
             return acc;
@@ -373,7 +438,7 @@ export function CollaborationProvider({ children }: { children: ReactNode }) {
     projectId: string,
     type: CollaborationActivity['type'],
     action: string,
-    details?: any
+    details?: Record<string, unknown>
   ) => {
     if (!user) return;
 

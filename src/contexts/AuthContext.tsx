@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
 export interface User {
   id: string;
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   // 初始化演示数据
-  const initializeDemoData = () => {
+  const initializeDemoData = useCallback(() => {
     const users = getAllUsers();
     const families = getAllFamilies();
 
@@ -134,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     }
-  };
+  }, []);
 
   // 从本地存储加载用户数据
   useEffect(() => {
@@ -172,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     loadUserData();
-  }, []);
+  }, [initializeDemoData]);
 
   // 保存用户数据到本地存储
   const saveUserData = (userData: User, familyData: Family) => {

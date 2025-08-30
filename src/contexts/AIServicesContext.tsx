@@ -155,7 +155,7 @@ export function AIServicesProvider({ children }: { children: ReactNode }) {
       if (saved) {
         const data = JSON.parse(saved);
         if (data.photoJobs) {
-          const jobsWithDates = data.photoJobs.map((job: any) => ({
+          const jobsWithDates = data.photoJobs.map((job: PhotoRestoreJob) => ({
             ...job,
             createdAt: new Date(job.createdAt),
             completedAt: job.completedAt ? new Date(job.completedAt) : undefined
@@ -163,7 +163,7 @@ export function AIServicesProvider({ children }: { children: ReactNode }) {
           setPhotoJobs(jobsWithDates);
         }
         if (data.storyJobs) {
-          const jobsWithDates = data.storyJobs.map((job: any) => ({
+          const jobsWithDates = data.storyJobs.map((job: FamilyStoryJob) => ({
             ...job,
             createdAt: new Date(job.createdAt),
             completedAt: job.completedAt ? new Date(job.completedAt) : undefined
@@ -171,7 +171,7 @@ export function AIServicesProvider({ children }: { children: ReactNode }) {
           setStoryJobs(jobsWithDates);
         }
         if (data.memorialJobs) {
-          const jobsWithDates = data.memorialJobs.map((job: any) => ({
+          const jobsWithDates = data.memorialJobs.map((job: MemorialSpaceJob) => ({
             ...job,
             createdAt: new Date(job.createdAt),
             completedAt: job.completedAt ? new Date(job.completedAt) : undefined
