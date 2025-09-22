@@ -30,6 +30,8 @@ COPY . .
 # Build the application
 RUN pnpm build
 
+RUN ls /app
+
 # Production image, copy all the files and run next
 FROM node:18-alpine AS runner
 # Install pnpm globally
