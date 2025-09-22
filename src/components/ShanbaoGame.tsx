@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -71,6 +71,38 @@ export default function ShanbaoGame({ onScoreChange }: ShanbaoGameProps) {
     setFuBaos(newFuBaos);
   };
 
+  // AI移动逻辑
+  const moveAI = useCallback(() => {
+    setOpponent(prev => {
+      // AI寻找最近的未收集福包
+      const availableFuBaos = fuBaos.filter(fb => !fb.collected);
+      if (availableFuBaos.length === 0) return prev;
+
+      const nearest = availableFuBaos.reduce((closest, current) => {
+        const currentDist = Math.sqrt(Math.pow(current.x - prev.x, 2) + Math.pow(current.y - prev.y, 2));
+        const closestDist = Math.sqrt(Math.pow(closest.x - prev.x, 2) + Math.pow(closest.y - prev.y, 2));
+        return currentDist < closestDist ? current : closest;
+      });
+
+      // 向目标移动
+      const dx = nearest.x - prev.x;
+      const dy = nearest.y - prev.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < 5) {
+        // 收集福包
+        collectFuBao(nearest.id, 'ai');
+        return prev;
+      }
+
+      const speed = 2;
+      const newX = Math.max(0, Math.min(100, prev.x + (dx / distance) * speed));
+      const newY = Math.max(0, Math.min(100, prev.y + (dy / distance) * speed));
+
+      return { ...prev, x: newX, y: newY };
+    });
+  }, [fuBaos]);
+
   // 开始游戏
   const startGame = () => {
     if (!selectedGender) return;
@@ -121,38 +153,7 @@ export default function ShanbaoGame({ onScoreChange }: ShanbaoGameProps) {
       }, 200);
       return () => clearInterval(aiMoveInterval);
     }
-  }, [gamePhase, fuBaos]);
-
-  const moveAI = () => {
-    setOpponent(prev => {
-      // AI寻找最近的未收集福包
-      const availableFuBaos = fuBaos.filter(fb => !fb.collected);
-      if (availableFuBaos.length === 0) return prev;
-
-      const nearest = availableFuBaos.reduce((closest, current) => {
-        const currentDist = Math.sqrt(Math.pow(current.x - prev.x, 2) + Math.pow(current.y - prev.y, 2));
-        const closestDist = Math.sqrt(Math.pow(closest.x - prev.x, 2) + Math.pow(closest.y - prev.y, 2));
-        return currentDist < closestDist ? current : closest;
-      });
-
-      // 向目标移动
-      const dx = nearest.x - prev.x;
-      const dy = nearest.y - prev.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-
-      if (distance < 5) {
-        // 收集福包
-        collectFuBao(nearest.id, 'ai');
-        return prev;
-      }
-
-      const speed = 2;
-      const newX = Math.max(0, Math.min(100, prev.x + (dx / distance) * speed));
-      const newY = Math.max(0, Math.min(100, prev.y + (dy / distance) * speed));
-
-      return { ...prev, x: newX, y: newY };
-    });
-  };
+  }, [gamePhase, moveAI]);
 
   // 收集福包
   const collectFuBao = (fuBaoId: string, playerId: string) => {
@@ -230,7 +231,7 @@ export default function ShanbaoGame({ onScoreChange }: ShanbaoGameProps) {
   };
 
   // 结束游戏
-  const endGame = (reason: 'time' | 'allCollected' = 'time') => {
+  const endGame = useCallback((reason: 'time' | 'allCollected' = 'time') => {
     setGamePhase('finished');
     setGameEndReason(reason);
     const playerWin = player.score > opponent.score;
@@ -245,7 +246,7 @@ export default function ShanbaoGame({ onScoreChange }: ShanbaoGameProps) {
       setCelebration(true);
       setTimeout(() => setCelebration(false), 3000);
     }
-  };
+  }, [player.score, opponent.score]);
 
   // 重置游戏
   const resetGame = () => {

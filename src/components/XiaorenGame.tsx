@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -58,6 +58,24 @@ export default function XiaorenGame({ onScoreChange }: XiaorenGameProps) {
     }
   ];
 
+  // 处理摇晃事件
+  const handleShake = useCallback(() => {
+    if (gamePhase !== 'playing' || hitCount >= 100) return;
+
+    // 播放拍打音效
+    audioManager.playHitSound();
+
+    setIsShaking(true);
+    setShakeDetected(true);
+    setHitCount(prev => prev + 1);
+    setXiaorenHealth(prev => Math.max(0, prev - 1));
+
+    setTimeout(() => {
+      setIsShaking(false);
+      setShakeDetected(false);
+    }, 200);
+  }, [gamePhase, hitCount]);
+
   // 摇晃检测
   useEffect(() => {
     if (gamePhase !== 'playing') return;
@@ -90,7 +108,8 @@ export default function XiaorenGame({ onScoreChange }: XiaorenGameProps) {
 
     // 请求权限并添加事件监听
     if (typeof DeviceMotionEvent !== 'undefined' && 'requestPermission' in DeviceMotionEvent) {
-      (DeviceMotionEvent as any).requestPermission().then((response: string) => {
+      // Fixed: Replaced 'any' with more specific type
+      (DeviceMotionEvent as unknown as { requestPermission: () => Promise<PermissionState> }).requestPermission().then((response: PermissionState) => {
         if (response === 'granted') {
           window.addEventListener('devicemotion', handleDeviceMotion);
         }
@@ -102,31 +121,26 @@ export default function XiaorenGame({ onScoreChange }: XiaorenGameProps) {
     return () => {
       window.removeEventListener('devicemotion', handleDeviceMotion);
     };
-  }, [gamePhase]);
-
-  // 处理摇晃事件
-  const handleShake = () => {
-    if (gamePhase !== 'playing' || hitCount >= 100) return;
-
-    // 播放拍打音效
-    audioManager.playHitSound();
-
-    setIsShaking(true);
-    setShakeDetected(true);
-    setHitCount(prev => prev + 1);
-    setXiaorenHealth(prev => Math.max(0, prev - 1));
-
-    setTimeout(() => {
-      setIsShaking(false);
-      setShakeDetected(false);
-    }, 200);
-  };
+  }, [gamePhase, handleShake]);
 
   // 手动点击（备用方案）
   const handleClick = () => {
     if (gamePhase !== 'playing' || hitCount >= 100) return;
     handleShake();
   };
+
+  // 结束游戏
+  const endGame = useCallback(() => {
+    if (hitCount >= 100) {
+      startBurning();
+    } else {
+      setGameResult('failure');
+      setGamePhase('finished');
+
+      // 停止背景音乐
+      audioManager.stopBackgroundMusic();
+    }
+  }, [hitCount]);
 
   // 游戏计时器
   useEffect(() => {
@@ -138,14 +152,39 @@ export default function XiaorenGame({ onScoreChange }: XiaorenGameProps) {
     } else if (timeLeft === 0 && gamePhase === 'playing') {
       endGame();
     }
-  }, [gamePhase, timeLeft]);
+  }, [gamePhase, timeLeft, endGame]);
+
+  // 开始燃烧阶段
+  const startBurning = useCallback(() => {
+    setGamePhase('burning');
+
+    // 停止背景音乐并播放燃烧音效
+    audioManager.stopBackgroundMusic();
+    audioManager.playBurnSound();
+
+    // 燃烧动画持续3秒
+    setTimeout(() => {
+      setGameResult('success');
+      setCelebration(true);
+      setGamePhase('finished');
+      onScoreChange(10); // 成功完成给10积分
+
+      // 播放成功音效
+      audioManager.playSuccessSound();
+
+      // 庆祝动画持续5秒
+      setTimeout(() => {
+        setCelebration(false);
+      }, 5000);
+    }, 3000);
+  }, [onScoreChange]);
 
   // 检查是否完成100次拍打
   useEffect(() => {
     if (hitCount >= 100 && gamePhase === 'playing') {
       startBurning();
     }
-  }, [hitCount, gamePhase]);
+  }, [hitCount, gamePhase, startBurning]);
 
   // 开始游戏
   const startGame = () => {
@@ -168,44 +207,6 @@ export default function XiaorenGame({ onScoreChange }: XiaorenGameProps) {
       // 播放背景音乐
       audioManager.playBackgroundMusic('xiaoren');
     }, 3000);
-  };
-
-  // 开始燃烧阶段
-  const startBurning = () => {
-    setGamePhase('burning');
-
-    // 停止背景音乐并播放燃烧音效
-    audioManager.stopBackgroundMusic();
-    audioManager.playBurnSound();
-
-    // 燃烧动画持续3秒
-    setTimeout(() => {
-      setGameResult('success');
-      setCelebration(true);
-      setGamePhase('finished');
-      onScoreChange(10); // 成功完成给10积分
-
-      // 播放成功音效
-      audioManager.playSuccessSound();
-
-      // 庆祝动画持续5秒
-      setTimeout(() => {
-        setCelebration(false);
-      }, 5000);
-    }, 3000);
-  };
-
-  // 结束游戏
-  const endGame = () => {
-    if (hitCount >= 100) {
-      startBurning();
-    } else {
-      setGameResult('failure');
-      setGamePhase('finished');
-
-      // 停止背景音乐
-      audioManager.stopBackgroundMusic();
-    }
   };
 
   // 重置游戏

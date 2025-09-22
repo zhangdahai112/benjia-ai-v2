@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export default function TestPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-100 to-blue-100">
@@ -10,9 +12,9 @@ export default function TestPage() {
           <p>✅ 样式渲染正常</p>
         </div>
         <div className="mt-8">
-          <a href="/" className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors">
+          <Link href="/" className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors">
             返回主页
-          </a>
+          </Link>
         </div>
       </div>
     </div>
