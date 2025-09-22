@@ -53,4 +53,4 @@ COPY --from=builder /app/out ./out
 EXPOSE 3000
 
 # Start the application
-CMD ["serve", "out"]
+CMD ["serve", "-s", "out"]

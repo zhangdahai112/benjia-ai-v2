@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Add this line to enable static export
+  output: 'export',
+  
   allowedDevOrigins: ["*.preview.same-app.com"],
   images: {
     unoptimized: true,
