@@ -4,13 +4,11 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Target, Clock, Zap, Sparkles, Volume2, VolumeX, Share2 } from 'lucide-react';
+import { Target, Clock, Zap, Sparkles, Volume2, VolumeX } from 'lucide-react';
 import { audioManager } from '@/lib/audioManager';
-// import SocialShare from './SocialShare';
 
 interface XiaorenGameProps {
   onScoreChange: (points: number) => void;
-  currentTotalScore?: number;
 }
 
 interface Granny {
@@ -21,7 +19,7 @@ interface Granny {
   specialty: string;
 }
 
-export default function XiaorenGame({ onScoreChange, currentTotalScore = 0 }: XiaorenGameProps) {
+export default function XiaorenGame({ onScoreChange }: XiaorenGameProps) {
   const [gamePhase, setGamePhase] = useState<'select' | 'prepare' | 'playing' | 'burning' | 'finished'>('select');
   const [selectedGranny, setSelectedGranny] = useState<Granny | null>(null);
   const [timeLeft, setTimeLeft] = useState(60);
@@ -92,7 +90,7 @@ export default function XiaorenGame({ onScoreChange, currentTotalScore = 0 }: Xi
 
     // 请求权限并添加事件监听
     if (typeof DeviceMotionEvent !== 'undefined' && 'requestPermission' in DeviceMotionEvent) {
-      (DeviceMotionEvent as { requestPermission(): Promise<string> }).requestPermission().then((response: string) => {
+      (DeviceMotionEvent as any).requestPermission().then((response: string) => {
         if (response === 'granted') {
           window.addEventListener('devicemotion', handleDeviceMotion);
         }
@@ -428,14 +426,6 @@ export default function XiaorenGame({ onScoreChange, currentTotalScore = 0 }: Xi
                   <p className="text-green-600 text-sm">
                     感谢{selectedGranny?.name}的帮助！
                   </p>
-                </div>
-
-                {/* 分享成就按钮 */}
-                <div className="mt-4">
-                  <Button variant="outline" className="w-full mb-3">
-                    <Share2 className="h-4 w-4 mr-2" />
-                    分享成就
-                  </Button>
                 </div>
               </div>
             ) : (

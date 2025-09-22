@@ -4,13 +4,11 @@ import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Heart, Clock, Trophy, Star, Volume2, VolumeX, Share2 } from 'lucide-react';
+import { Heart, Clock, Trophy, Star, Volume2, VolumeX } from 'lucide-react';
 import { audioManager } from '@/lib/audioManager';
-// import SocialShare from './SocialShare';
 
 interface ShanbaoGameProps {
   onScoreChange: (points: number) => void;
-  currentTotalScore?: number;
 }
 
 interface Player {
@@ -32,7 +30,7 @@ interface FuBao {
   collected: boolean;
 }
 
-export default function ShanbaoGame({ onScoreChange, currentTotalScore = 0 }: ShanbaoGameProps) {
+export default function ShanbaoGame({ onScoreChange }: ShanbaoGameProps) {
   const [gamePhase, setGamePhase] = useState<'select' | 'playing' | 'finished'>('select');
   const [selectedGender, setSelectedGender] = useState<'male' | 'female' | null>(null);
   const [timeLeft, setTimeLeft] = useState(60);
@@ -344,14 +342,6 @@ export default function ShanbaoGame({ onScoreChange, currentTotalScore = 0 }: Sh
                     <p className="text-yellow-600 font-bold">金币鲜花洒下！</p>
                   </div>
                 )}
-
-                {/* 分享成就按钮 */}
-                <div className="mt-4">
-                  <Button variant="outline" className="w-full mb-3">
-                    <Share2 className="h-4 w-4 mr-2" />
-                    分享成就
-                  </Button>
-                </div>
               </div>
             )}
             {gameResult === 'lose' && (
